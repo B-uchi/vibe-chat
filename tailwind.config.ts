@@ -1,5 +1,13 @@
 import type { Config } from "tailwindcss";
 
+interface fontFamilyInterface {
+  [key: string]: string[];
+}
+const fontFamily: fontFamilyInterface = {
+  rowdies: ['Rowdies', 'sans-serif'],
+  poppins: ['Poppins', 'sans-serif'],
+};
+
 const config: Config = {
   content: [
     "./pages/**/*.{js,ts,jsx,tsx,mdx}",
@@ -8,11 +16,7 @@ const config: Config = {
   ],
   theme: {
     extend: {
-      backgroundImage: {
-        "gradient-radial": "radial-gradient(var(--tw-gradient-stops))",
-        "gradient-conic":
-          "conic-gradient(from 180deg at 50% 50%, var(--tw-gradient-stops))",
-      },
+      fontFamily: fontFamily,
     },
   },
   plugins: [],
