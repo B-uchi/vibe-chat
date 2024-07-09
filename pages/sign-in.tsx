@@ -1,10 +1,18 @@
 import React, { useState } from "react";
 import { FcGoogle } from "react-icons/fc";
 import { toast, Toaster } from "sonner";
-import { auth } from "@/lib/util/firebaseConfig";
-import { signInWithEmailAndPassword } from "firebase/auth";
+import { auth, db } from "@/lib/util/firebaseConfig";
+import {
+  signInWithEmailAndPassword,
+  createUserWithEmailAndPassword,
+  sendEmailVerification,
+  GoogleAuthProvider,
+  signInWithPopup,
+} from "firebase/auth";
+import { doc, setDoc, getDoc } from "firebase/firestore";
 import { useAuth } from "@/lib/hooks/useAuth";
 import { useRouter } from "next/router";
+import Spinner from "@/components/Spinner";
 
 const SignIn = () => {
   const [page, setPage] = useState("signin");
@@ -12,20 +20,28 @@ const SignIn = () => {
   const [lastName, setLastName] = useState("");
   const [password, setPassword] = useState("");
   const [email, setEmail] = useState("");
-  const user = useAuth();
+  const [loading, setLoading] = useState(false);
+  const user = useAuth()?.user;
   const router = useRouter();
 
   const signIn = async (e: React.FormEvent<HTMLFormElement>) => {
+    setLoading(true);
     e.preventDefault();
     if (!email || !password) {
+      setLoading(false);
       return toast.error("All fields are required");
     }
     await signInWithEmailAndPassword(auth, email, password)
       .then(async (userCredential) => {
         const user = userCredential.user;
-        if (!user.emailVerified) {
-          await auth.signOut();
-          toast.error("Please verify your email before logging in.");
+        const userDoc = await getDoc(doc(db, "users", user.uid));
+        if (userDoc.data()?.userName) {
+          setLoading(false);
+          router.push("/");
+          return;
+        } else {
+          setLoading(false);
+          router.push("/complete-sign-up");
         }
       })
       .catch((error) => {
@@ -34,15 +50,77 @@ const SignIn = () => {
       });
   };
 
-  if (user) {
-    // If user is already signed in, redirect or display a message
-    router.push("/");
-    return <p>Loading...</p>;
-  }
+  const signUp = async (e: React.FormEvent<HTMLFormElement>) => {
+    setLoading(true);
+    e.preventDefault();
+    if (!email || !password || !firstName || !lastName) {
+      return toast.error("All fields are required");
+    }
+    await createUserWithEmailAndPassword(auth, email, password)
+      .then(async (userCredential) => {
+        try {
+          const user = userCredential.user;
+          sendEmailVerification(user);
+
+          const userDoc = await setDoc(doc(db, "users", user.uid), {
+            id: user.uid,
+            email: user.email,
+            firstName,
+            lastName,
+            createdAt: new Date().toISOString(),
+          });
+          setLoading(false);
+          toast.info(
+            "Account created successfully. Check inbox for verification email"
+          );
+          router.push("/complete-sign-up");
+        } catch (error) {
+          setLoading(false);
+          toast.error("Failed, please try again");
+          console.log(error);
+        }
+      })
+      .catch((error) => {
+        setLoading(false);
+        console.log(error.message);
+        toast.error(error.message);
+      });
+  };
+
+  const handleGoogleSignIn = async () => {
+    setLoading(true);
+    const provider = new GoogleAuthProvider();
+    await signInWithPopup(auth, provider)
+      .then(async (result) => {
+        const user = result.user;
+        const userDoc = await getDoc(doc(db, "users", user.uid));
+        if (userDoc.exists()) {
+          setLoading(false);
+          return;
+        } else {
+          console.log("new user");
+          const userDoc = await setDoc(doc(db, "users", user.uid), {
+            id: user.uid,
+            email: user.email,
+            firstName: user.displayName?.split(" ")[0],
+            lastName: user.displayName?.split(" ")[1],
+            createdAt: new Date().toISOString(),
+          });
+          router.push("/complete-sign-up");
+          setLoading(false);
+        }
+      })
+      .catch((error) => {
+        console.log(error);
+        setLoading(false);
+        toast.error("An error occured");
+      });
+  };
 
   return (
-    <main className="w-full h-[100vh] flex">
+    <main className="w-full h-[100vh] flex relative">
       <Toaster position="top-right" richColors />
+      {loading && <Spinner />}
       <div className="h-full w-1/2 bg-[#313131] flex justify-center items-center">
         <div className="text-center">
           <h1 className="font-rowdies text-6xl font-extrabold text-white">
@@ -99,7 +177,10 @@ const SignIn = () => {
               <div className="border-t border-gray-300 flex-grow ml-3"></div>
             </div>
             <div className="mt-3">
-              <button className="p-2 w-full py-3 rounded-md text-black border-[#313131] border-[1px] font-poppins flex items-center gap-2 justify-center">
+              <button
+                onClick={() => handleGoogleSignIn()}
+                className="p-2 w-full py-3 rounded-md text-black border-[#313131] border-[1px] font-poppins flex items-center gap-2 justify-center"
+              >
                 <FcGoogle /> Sign In with Google
               </button>
             </div>
@@ -109,7 +190,7 @@ const SignIn = () => {
             <h1 className="font-poppins font-bold text-3xl text-center mb-5">
               Sign Up
             </h1>
-            <form className="">
+            <form className="" onSubmit={(e) => signUp(e)}>
               <div className="flex">
                 <div className="w-1/2">
                   <label>First Name:</label>
@@ -152,15 +233,18 @@ const SignIn = () => {
                   placeholder="Enter your password"
                 />
               </div>
+              <div className="mt-3 text-center">
+                <button
+                  type="submit"
+                  className="p-2 w-full text-center py-3 bg-[#313131] rounded-md text-white font-bold font-poppins"
+                >
+                  Sign Up
+                </button>
+                <button className="mt-2" onClick={() => setPage("signin")}>
+                  Already have an Account?
+                </button>
+              </div>
             </form>
-            <div className="mt-3 text-center">
-              <button className="p-2 w-full text-center py-3 bg-[#313131] rounded-md text-white font-bold font-poppins">
-                Sign Up
-              </button>
-              <button className="mt-2" onClick={() => setPage("signin")}>
-                Already have an Account?
-              </button>
-            </div>
             <div className="flex items-center justify-center my-5">
               <div className="border-t border-gray-300 flex-grow mr-3"></div>
               <span className="text-gray-500 font-poppins">OR</span>
