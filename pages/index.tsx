@@ -1,9 +1,9 @@
-import Image from "next/image";
-import { Inter } from "next/font/google";
+import { useAuth } from "@/lib/hooks/useAuth";
 
-const inter = Inter({ subsets: ["latin"] });
 
 export default function Home() {
+  const user = useAuth()?.user;
+  console.log(user)
   return (
     <div className="">Homee</div>
   );
