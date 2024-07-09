@@ -13,6 +13,7 @@ import { doc, setDoc, getDoc } from "firebase/firestore";
 import { useAuth } from "@/lib/hooks/useAuth";
 import { useRouter } from "next/router";
 import Spinner from "@/components/Spinner";
+import Head from "next/head";
 
 const SignIn = () => {
   const [page, setPage] = useState("signin");
@@ -23,7 +24,6 @@ const SignIn = () => {
   const [loading, setLoading] = useState(false);
   const user = useAuth()?.user;
   const router = useRouter();
-  window.document.title = 'Sign In to Vibe Chat'
 
   const signIn = async (e: React.FormEvent<HTMLFormElement>) => {
     setLoading(true);
@@ -120,6 +120,8 @@ const SignIn = () => {
 
   return (
     <main className="w-full h-[100vh] flex relative">
+      <Head>Sign In to Vibe Chat</Head>
+
       <Toaster position="top-right" richColors />
       {loading && <Spinner />}
       <div className="h-full w-1/2 bg-[#313131] flex justify-center items-center">
