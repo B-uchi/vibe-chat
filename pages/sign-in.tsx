@@ -23,6 +23,7 @@ const SignIn = () => {
   const [loading, setLoading] = useState(false);
   const user = useAuth()?.user;
   const router = useRouter();
+  window.document.title = 'Sign In to Vibe Chat'
 
   const signIn = async (e: React.FormEvent<HTMLFormElement>) => {
     setLoading(true);
